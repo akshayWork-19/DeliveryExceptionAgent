@@ -34,12 +34,10 @@ Categories:
 
   const classification = await structuredLlm.invoke(prompt);
 
-  // The routing logic itself — trace this by hand before running:
-  // damaged packages ALWAYS go to investigation regardless of value.
-  // refused/unreachable only need a human if the order is expensive
-  // enough that an automatic refund is risky. Everything else just
-  // gets retried.
-
+  // Routing logic:
+  // - damaged packages route to investigation
+  // - customer_refused / address_unreachable route to refund approval if above threshold, otherwise redelivery
+  // - all other exceptions default to redelivery
   let goto: string;
 
   if (classification.exceptionType === "package_damaged") {
@@ -63,10 +61,8 @@ Categories:
 }
 
 // ---------------------------------------------------------------------
-// AUTOMATIC PATH — no human involved, but wrapped in a retry policy
-// (configured in graph.ts) since this represents an external dispatch
-// API call that can genuinely fail transiently.
-// --------------------------------------------------------------------
+// Redelivery path (configured with retryPolicy in graph.ts)
+// ---------------------------------------------------------------------
 
 let retryAttempts = 0;
 
@@ -74,8 +70,6 @@ export async function retryDelivery(state: State): Promise<Command> {
   retryAttempts += 1;
   console.log(`[retryDelivery] attempt #${retryAttempts}`);
 
-  // Toggle this to simulate a flaky dispatch API, same exercise as
-  // the email agent's searchDocumentation. Leave as false for normal runs.
   const SIMULATE_FLAKY_CALL = true;
   if (SIMULATE_FLAKY_CALL && retryAttempts < 3) {
     throw new Error(
@@ -90,7 +84,7 @@ export async function retryDelivery(state: State): Promise<Command> {
 }
 
 // ---------------------------------------------------------------------
-// HUMAN-GATED PATH — refund above threshold needs sign-off.
+// Human approval path for high-value refunds
 // ---------------------------------------------------------------------
 
 export async function refundApproval(state: State): Promise<Command> {
@@ -125,7 +119,7 @@ export async function processRefund(state: State): Promise<Command> {
 }
 
 // ---------------------------------------------------------------------
-// ALWAYS-HUMAN PATH — package damage, or a rejected refund.
+// Manual investigation path (damaged goods or rejected refund)
 // ---------------------------------------------------------------------
 
 export async function flagForInvestigation(state: State): Promise<Command> {

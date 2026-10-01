@@ -1,9 +1,11 @@
 {
   "name": "delivery-exception-agent",
   "version": "1.0.0",
+  "type": "module",
   "description": "Chatbot #3 - delivery exception handler routing on TWO fields (exception type + order value), not just intent",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "serve": "tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Exception Agent | LangGraph HITL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation / Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="3" width="15" height="13"></rect>
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">DeliveryExceptionAgent</h1>
+          <p class="brand-subtitle">LangGraph Routing &amp; Human-in-the-Loop Engine</p>
+        </div>
+      </div>
+      <div class="server-status-pill" id="serverStatusBadge">
+        <span class="status-dot pulsing"></span>
+        <span id="serverStatusText">Checking Backend...</span>
+      </div>
+    </header>
+
+    <!-- Main Grid Content -->
+    <main class="main-layout">
+      <!-- Left Column: Input Form & Presets -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>Courier Exception Report</h2>
+          <span class="panel-tag">Input Dispatch</span>
+        </div>
+
+        <!-- Quick Test Scenarios -->
+        <div class="presets-section">
+          <label class="section-label">Quick Test Scenarios</label>
+          <div class="presets-grid">
+            <button type="button" class="preset-btn" data-preset="refused-high">
+              <span class="preset-icon">🚨</span>
+              <div class="preset-info">
+                <strong>Refused (High Value)</strong>
+                <small>₹4,999 • Triggers Human HITL</small>
+              </div>
+            </button>
+            <button type="button" class="preset-btn" data-preset="refused-low">
+              <span class="preset-icon">🔄</span>
+              <div class="preset-info">
+                <strong>Refused (Low Value)</strong>
+                <small>₹850 • Auto-routes to Redelivery</small>
+              </div>
+            </button>
+            <button type="button" class="preset-btn" data-preset="damaged">
+              <span class="preset-icon">📦</span>
+              <div class="preset-info">
+                <strong>Damaged Parcel</strong>
+                <small>₹3,200 • Flag for Investigation</small>
+              </div>
+            </button>
+            <button type="button" class="preset-btn" data-preset="unreachable">
+              <span class="preset-icon">📍</span>
+              <div class="preset-info">
+                <strong>Address Unreachable</strong>
+                <small>₹2,450 • Approval Threshold</small>
+              </div>
+            </button>
+            <button type="button" class="preset-btn" data-preset="unavailable">
+              <span class="preset-icon">⏳</span>
+              <div class="preset-info">
+                <strong>Customer Unavailable</strong>
+                <small>₹1,150 • Retry with Policy</small>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submission Form -->
+        <form id="exceptionForm" class="exception-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="orderId">Order ID</label>
+              <input type="text" id="orderId" name="orderId" value="order-9881" required placeholder="e.g. order-9881">
+            </div>
+            <div class="form-group">
+              <label for="courierId">Courier Partner ID</label>
+              <input type="text" id="courierId" name="courierId" value="courier-55" required placeholder="e.g. courier-55">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-hint">
+              <label for="orderValue">Order Value (₹)</label>
+              <span class="threshold-hint">&gt; ₹2,000 threshold triggers human review</span>
+            </div>
+            <div class="input-with-prefix">
+              <span class="currency-symbol">₹</span>
+              <input type="number" id="orderValue" name="orderValue" value="4999" min="1" step="1" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reportText">Courier Incident Note</label>
+            <textarea id="reportText" name="reportText" rows="3" required placeholder="Describe delivery status from courier partner...">Kindly approve my refund, i dont need the product anymore</textarea>
+          </div>
+
+          <button type="submit" id="submitBtn" class="btn-primary">
+            <span class="btn-text">Execute Exception Agent</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Right Column: Interactive Graph Pipeline & HITL Decision -->
+      <section class="panel workflow-panel">
+        <div class="panel-header">
+          <h2>LangGraph Execution State</h2>
+          <span class="panel-tag active" id="workflowStatusBadge">Idle</span>
+        </div>
+
+        <!-- Visual Flow Pipeline -->
+        <div class="flow-container">
+          <div class="flow-nodes">
+            <!-- Node: Classify -->
+            <div class="flow-node" id="node-classifyException">
+              <div class="node-icon">🧠</div>
+              <div class="node-content">
+                <span class="node-title">classifyException</span>
+                <span class="node-desc">Groq LLM Structured Extraction</span>
+              </div>
+              <span class="node-status-dot"></span>
+            </div>
+
+            <div class="flow-branch-indicator">
+              <div class="branch-line"></div>
+              <span class="branch-label">Routing Logic (Type + ₹ Value)</span>
+            </div>
+
+            <!-- Target Branch Nodes -->
+            <div class="branch-group">
+              <div class="flow-node mini-node" id="node-retryParcelDelivery">
+                <div class="node-icon">🔁</div>
+                <div class="node-content">
+                  <span class="node-title">retryParcelDelivery</span>
+                  <span class="node-desc">Retry Policy (Max 3)</span>
+                </div>
+                <span class="node-status-dot"></span>
+              </div>
+
+              <div class="flow-node mini-node" id="node-exceptionRefundApproval">
+                <div class="node-icon">⚖️</div>
+                <div class="node-content">
+                  <span class="node-title">exceptionRefundApproval</span>
+                  <span class="node-desc">Human-in-the-Loop Interrupt</span>
+                </div>
+                <span class="node-status-dot"></span>
+              </div>
+
+              <div class="flow-node mini-node" id="node-flagExceptionForInvestigation">
+                <div class="node-icon">🔍</div>
+                <div class="node-content">
+                  <span class="node-title">flagForInvestigation</span>
+                  <span class="node-desc">Ticket INV-00042</span>
+                </div>
+                <span class="node-status-dot"></span>
+              </div>
+            </div>
+
+            <!-- Node: Process Refund -->
+            <div class="flow-node sub-node" id="node-generateRefund">
+              <div class="node-icon">💳</div>
+              <div class="node-content">
+                <span class="node-title">generateRefund</span>
+                <span class="node-desc">Process Payment Reversal</span>
+              </div>
+              <span class="node-status-dot"></span>
+            </div>
+
+            <!-- Node: Finalize -->
+            <div class="flow-node" id="node-finalizeExceptionResolution">
+              <div class="node-icon">🏁</div>
+              <div class="node-content">
+                <span class="node-title">finalizeResolution</span>
+                <span class="node-desc">Terminal State &amp; Notification</span>
+              </div>
+              <span class="node-status-dot"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Human-in-the-loop Interrupt Card (Visible when paused) -->
+        <div id="hitlCard" class="hitl-card hidden">
+          <div class="hitl-banner">
+            <span class="hitl-badge">🚨 Action Required: Human Decision</span>
+            <span class="hitl-timer" id="hitlThreadId">Thread: #</span>
+          </div>
+          <div class="hitl-body">
+            <h3 class="hitl-title" id="hitlActionText">Approve refund of order value</h3>
+            <p class="hitl-subtitle">Order exceeds ₹2,000 threshold and was classified as customer refusal or address unreachable.</p>
+
+            <div class="hitl-meta-grid">
+              <div class="hitl-meta-item">
+                <label>Order ID</label>
+                <span id="hitlOrderId">-</span>
+              </div>
+              <div class="hitl-meta-item">
+                <label>Order Value</label>
+                <span id="hitlOrderValue" class="text-highlight">-</span>
+              </div>
+              <div class="hitl-meta-item">
+                <label>Detected Exception</label>
+                <span id="hitlExceptionType" class="badge-type">-</span>
+              </div>
+              <div class="hitl-meta-item full">
+                <label>AI Classification Summary</label>
+                <span id="hitlSummaryText" class="hitl-summary">-</span>
+              </div>
+            </div>
+
+            <div class="hitl-actions">
+              <button type="button" id="approveRefundBtn" class="btn-hitl-approve">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Approve Refund</span>
+              </button>
+              <button type="button" id="rejectRefundBtn" class="btn-hitl-reject">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <span>Reject &amp; Flag for Investigation</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Final Outcome Card -->
+        <div id="outcomeCard" class="outcome-card hidden">
+          <div class="outcome-header">
+            <span class="outcome-badge" id="outcomeBadge">Completed</span>
+            <span class="outcome-timestamp" id="outcomeTime">-</span>
+          </div>
+          <div class="outcome-content">
+            <div class="outcome-resolution">
+              <label>Final Resolution</label>
+              <p id="outcomeResolutionText">-</p>
+            </div>
+            <div class="outcome-details-grid">
+              <div class="outcome-item">
+                <label>Exception Type</label>
+                <span id="outcomeExceptionType" class="tag-type">-</span>
+              </div>
+              <div class="outcome-item">
+                <label>Order Value</label>
+                <span id="outcomeOrderValue">-</span>
+              </div>
+              <div class="outcome-item full">
+                <label>Agent Reason</label>
+                <span id="outcomeSummary">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Activity Log & State Inspector -->
+        <div class="state-inspector">
+          <div class="inspector-header">
+            <span class="inspector-title">Activity Log &amp; State</span>
+            <button type="button" id="toggleJsonBtn" class="btn-link">View Raw JSON</button>
+          </div>
+          <div class="audit-log" id="auditLog">
+            <div class="log-entry system">
+              <span class="log-time">System</span>
+              <span class="log-msg">Agent ready. Select a scenario or submit a custom delivery incident report.</span>
+            </div>
+          </div>
+          <div id="jsonViewer" class="json-viewer hidden">
+            <pre><code id="jsonCode">{}</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
